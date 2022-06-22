@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'S3 notifica lambda quando arquivo excluido'
+Parameters:
+  BucketName:
+    Type: String
+  pDbName:
+    Type: String
+  pDbUser:
+    Type: String
+  pDbPass:
+    Type: String
+    Description: "It should be less than 8 characters"
+
+
+Resources:
+  SimpleVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: stack
+          Value: des
+
+  SimpleSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SimpleVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: stack
+          Value: des
+
+  SimpleSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: SimpleVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: "us-east-1b"
+      Tags:
+        - Key: stack
+          Value: des
+
+  SimpleDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      SubnetIds:
+        - Ref: SimpleSubnet1
+        - Ref: SimpleSubnet2
+      DBSubnetGroupDescription: Subnet para o RDS
+
+  MyBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LambdaS3Permissao
+    Properties:
+      BucketName: !Ref BucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectRemoved:*
+            Function: !GetAtt LambdaS3Processamento.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .txt
+                  - Name: suffix
+                    Value: .txt
+                    ExpirationInDays: 1
+
+  LambdaS3Permissao:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaS3Processamento
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::${BucketName}'
+      SourceAccount: !Ref AWS::AccountId
+
+  LambdaS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: PermitirAcessoVPC
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ 'logs:*', 'ec2:*' ]
+                Resource: '*'
+
+  LambdaS3Processamento:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.execute
+      Role: !GetAtt LambdaS3Role.Arn
+      Runtime: nodejs12.x
+      MemorySize: 128
+      Timeout: 45
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-0c094b8e5f85ae4b3
+        SubnetIds:
+          - !Ref SimpleSubnet1
+          - !Ref SimpleSubnet2
+      Code:
+        ZipFile: >
+          exports.execute = (event, context) => {
+            console.log(event);
+          }
+
+  SQLDemoDbInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref pDbName
+      MasterUsername: !Ref pDbUser
+      MasterUserPassword: !Ref pDbPass
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      StorageType: gp2
+      PubliclyAccessible: False
+      DBSubnetGroupName:
+        Ref: SimpleDBSubnetGroup
+      AllocatedStorage: "20"
+      DBInstanceIdentifier: !Join ["-", [ "SQLDemoDbInstance", !Ref "AWS::Region" ]]
+      AvailabilityZone: !Select [1, !GetAZs ""]

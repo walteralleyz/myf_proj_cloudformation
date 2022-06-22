@@ -1,0 +1,15 @@
+{
+  "name": "lambdas3processamento",
+  "version": "1.0.0",
+  "description": "Receives S3 event and register into RDS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "walteralleyz",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.1",
+    "mysql": "^2.18.1"
+  }
+}
