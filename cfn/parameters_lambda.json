@@ -1,0 +1,21 @@
+[
+    {
+        "ParameterKey": "BucketName",
+        "ParameterValue":  "arqs-notify-lambda"
+    },
+
+    {
+	"ParameterKey": "pDbName",
+	"ParameterValue": "eventsavedb"
+    },
+
+    {
+        "ParameterKey": "pDbUser",
+        "ParameterValue": "master"
+    },
+
+    {
+        "ParameterKey": "pDbPass",
+        "ParameterValue": "rootadmin"
+    }
+]
